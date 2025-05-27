@@ -1,0 +1,42 @@
+[project]
+name = "datasette-geojson-cluster-map"
+version = "0.1"
+description = "Draw GeoJSON from a database on the standard Datasette cluster map"
+readme = "README.md"
+authors = [{ name = "Evan Jones" }]
+license = "Apache-2.0"
+classifiers = ["Framework :: Datasette"]
+requires-python = ">=3.9"
+dependencies = [
+    "datasette",
+    "datasette-cluster-map @ git+https://github.com/etjones/datasette-cluster-map/",
+]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project.urls]
+Homepage = "https://github.com/etjones/datasette-geojson-cluster-map"
+Changelog = "https://github.com/etjones/datasette-geojson-cluster-map/releases"
+Issues = "https://github.com/etjones/datasette-geojson-cluster-map/issues"
+CI = "https://github.com/etjones/datasette-geojson-cluster-map/actions"
+
+[project.entry-points.datasette]
+geojson_cluster_map = "datasette_geojson_cluster_map"
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "pytest-asyncio",
+    "datasette-test",
+    "nest-asyncio",
+    "pytest-playwright",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "strict"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.setuptools.package-data]
+datasette_geojson_cluster_map = ["static/*", "templates/*"]
