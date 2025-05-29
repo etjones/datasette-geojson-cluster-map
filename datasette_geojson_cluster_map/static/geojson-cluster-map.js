@@ -9,7 +9,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     const L = await waitForLeaflet();
 
     // Try to find an existing datasette-cluster-map instance
-    const map = getClusterMapInstance();
+    const map = await getClusterMapInstance();
     if (!map) {
         // Bail if we can't get or create a map
         return;
@@ -21,15 +21,18 @@ document.addEventListener("DOMContentLoaded", async function () {
     if (!geojsonColumns.length) return;
 
     const path = getQueryPath(this.location);
+
     // add all the geoJSON to the map
     loadMarkers(path, map, geojsonColumns, 0);
 
 });
 
-const getClusterMapInstance = () => {
+const getClusterMapInstance = async () => {
     // # FIXME: this would break if more than one map were defined on the page
-    let mapDiv = document.querySelector(".leaflet-container");
+    const mapDiv = await waitForSelector(".leaflet-container");
+    // let mapDiv = document.querySelector(".leaflet-container");
     if (mapDiv && mapDiv.datasetteClusterMap) {
+        const map = mapDiv.datasetteClusterMap
         return mapDiv.datasetteClusterMap;
     }
     // No map found: this plugin is a no-op without the cluster map's data
@@ -76,15 +79,23 @@ const loadMarkers = (path, map, geojsonColumns, count) => {
     return fetch(path)
         .then((r) => r.json())
         .then((data) => {
-            // let markerList = [];
             let geojsonLayers = [];
             data.rows.forEach((row) => {
+
                 geojsonColumns.forEach(col => {
                     let val = row[col];
                     if (val) {
                         try {
                             let parsed = typeof val === "string" ? JSON.parse(val) : val;
                             if (parsed && typeof parsed === "object" && parsed.type && geojsonTypes.has(parsed.type)) {
+                                // // TODO: If our geoJSON has a className defined in properties, 
+                                // // add it to the style of the object we create.
+                                // // This will allow us to apply styles externally
+                                // let style = { ...geojsonStyle };
+                                // if (parsed.properties && parsed.properties.className) {
+                                //     style.className = parsed.properties.className;
+                                // }
+
                                 let layer = L.geoJSON(parsed, { style: geojsonStyle });
                                 geojsonLayers.push(layer);
                             }
@@ -94,7 +105,7 @@ const loadMarkers = (path, map, geojsonColumns, count) => {
             });
             // Add GeoJSON overlays to map
             geojsonLayers.forEach(layer => layer.addTo(map));
-
+            // console.log(`Added ${geojsonLayers.length} geoJson layers to map`);
         });
 }
 
@@ -109,7 +120,7 @@ const getQueryPath = (location) => {
     return path;
 };
 
-async function waitForLeaflet(maxAttempts = 20, intervalMs = 100) {
+async function waitForLeaflet(maxAttempts = 200, intervalMs = 100) {
     for (let i = 0; i < maxAttempts; i++) {
         if (window.L) {
             return window.L;
@@ -117,4 +128,21 @@ async function waitForLeaflet(maxAttempts = 20, intervalMs = 100) {
         await new Promise(resolve => setTimeout(resolve, intervalMs));
     }
     throw new Error("Leaflet (window.L) not loaded");
+}
+
+async function waitForSelector(selector, timeoutMs = 2000, intervalMs = 100) {
+    const start = Date.now();
+    return new Promise((resolve) => {
+        function check() {
+            const el = document.querySelector(selector);
+            if (el) {
+                resolve(el);
+            } else if (Date.now() - start >= timeoutMs) {
+                resolve(null);
+            } else {
+                setTimeout(check, intervalMs);
+            }
+        }
+        check();
+    });
 }
