@@ -19,11 +19,27 @@ document.addEventListener("DOMContentLoaded", async function () {
     // Find table rows and scan for GeoJSON columns
     const geojsonColumns = getGeoJsonColumns();
     if (!geojsonColumns.length) return;
-
     const path = getQueryPath(this.location);
 
     // add all the geoJSON to the map
     loadMarkers(path, map, geojsonColumns, 0);
+
+    // Customize the map.
+    // Add a metric/imperial distance scale
+    L.control.scale().addTo(map);
+
+    // Add a legend to the map. This is just a demo for now; 
+    // TODO: We'd like some way to dynamically create the legend from
+    // the content of the geojson we're drawing.
+
+    // // blue, from 25% saturation to 100% saturation
+    // const colors = [
+    //     "#60609f", "#5656a9", "#4d4db2", "#4343bc", "#3a3ac5",
+    //     "#3030cf", "#2626d9", "#1d1de2", "#1313ec", "#0a0af5", "#0000ff",
+    // ];
+
+    // const labels = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+    // addColorKey(map, colors, labels);
 
 });
 
@@ -145,4 +161,23 @@ async function waitForSelector(selector, timeoutMs = 2000, intervalMs = 100) {
         }
         check();
     });
+}
+
+// colors: array of color strings, e.g. ["#60609f", "#5b5ba4", ...]
+// labels: array of label strings, e.g. ["0", "5", "10", ...]
+function addColorKey(map, colors, labels, title = "Legend") {
+    const legend = L.control({ position: 'bottomright' });
+
+    legend.onAdd = function () {
+        const div = L.DomUtil.create('div', 'info legend');
+        div.innerHTML += `<div style="font-weight:bold; margin-bottom:4px;">${title}</div>`;
+        for (let i = 0; i < colors.length; i++) {
+            div.innerHTML +=
+                `<i style="background:${colors[i]}; width:18px; height:18px; display:inline-block; margin-right:8px; border:1px solid #333; vertical-align:middle;"></i>` +
+                `<span style="vertical-align:middle;">${labels[i]}</span><br>`;
+        }
+        return div;
+    };
+
+    legend.addTo(map);
 }
