@@ -67,9 +67,18 @@ const getGeoJsonColumns = () => {
     let geojsonColumns = [];
 
     columns.forEach((col, idx) => {
-        // Find first non-empty cell in this column
-        let cell = document.querySelector(`table.rows-and-columns td:nth-child(${idx + 1})`);
-        if (cell && cell.innerText.trim()) {
+        // Get all cells in the current column
+        // and iterate until we find one with text in it
+        const cells = document.querySelectorAll(`table.rows-and-columns td:nth-child(${idx + 1})`);
+        let cell = null;
+        for (const c of cells) {
+            if (c.innerText && c.innerText.trim() !== "") {
+                cell = c;
+                break;
+            }
+        }
+
+        if (cell && cell.innerText.trim() !== "") {
             try {
                 let val = cell.innerText.trim();
                 let parsed = JSON.parse(val);
