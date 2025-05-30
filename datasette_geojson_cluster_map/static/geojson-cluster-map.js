@@ -5,6 +5,12 @@ const geojsonTypes = new Set([
 ]);
 
 document.addEventListener("DOMContentLoaded", async function () {
+    // --- GeoJSON overlay logic ---
+    // Find table rows and scan for GeoJSON columns; 
+    // bail immediately if we don't find any
+    const geojsonColumns = getGeoJsonColumns();
+    if (!geojsonColumns.length) return;
+
     // make sure leaflet is loaded
     const L = await waitForLeaflet();
 
@@ -15,10 +21,6 @@ document.addEventListener("DOMContentLoaded", async function () {
         return;
     }
 
-    // --- GeoJSON overlay logic ---
-    // Find table rows and scan for GeoJSON columns
-    const geojsonColumns = getGeoJsonColumns();
-    if (!geojsonColumns.length) return;
     const path = getQueryPath(this.location);
 
     // add all the geoJSON to the map
@@ -28,25 +30,10 @@ document.addEventListener("DOMContentLoaded", async function () {
     // Add a metric/imperial distance scale
     L.control.scale().addTo(map);
 
-    // Add a legend to the map. This is just a demo for now; 
-    // TODO: We'd like some way to dynamically create the legend from
-    // the content of the geojson we're drawing.
-
-    // // blue, from 25% saturation to 100% saturation
-    // const colors = [
-    //     "#60609f", "#5656a9", "#4d4db2", "#4343bc", "#3a3ac5",
-    //     "#3030cf", "#2626d9", "#1d1de2", "#1313ec", "#0a0af5", "#0000ff",
-    // ];
-
-    // const labels = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
-    // addColorKey(map, colors, labels);
-
 });
 
 const getClusterMapInstance = async () => {
-    // # FIXME: this would break if more than one map were defined on the page
     const mapDiv = await waitForSelector(".leaflet-container");
-    // let mapDiv = document.querySelector(".leaflet-container");
     if (mapDiv && mapDiv.datasetteClusterMap) {
         const map = mapDiv.datasetteClusterMap
         return mapDiv.datasetteClusterMap;
@@ -63,7 +50,6 @@ const getGeoJsonColumns = () => {
         (th) => (th.getAttribute("data-column") || th.textContent).trim()
     );
 
-    // Only enable GeoJSON detection if the opt-in flag is true
     let geojsonColumns = [];
 
     columns.forEach((col, idx) => {
@@ -106,22 +92,29 @@ const loadMarkers = (path, map, geojsonColumns, count) => {
         .then((data) => {
             let geojsonLayers = [];
             data.rows.forEach((row) => {
-
                 geojsonColumns.forEach(col => {
                     let val = row[col];
                     if (val) {
                         try {
                             let parsed = typeof val === "string" ? JSON.parse(val) : val;
                             if (parsed && typeof parsed === "object" && parsed.type && geojsonTypes.has(parsed.type)) {
-                                // // TODO: If our geoJSON has a className defined in properties, 
-                                // // add it to the style of the object we create.
-                                // // This will allow us to apply styles externally
-                                // let style = { ...geojsonStyle };
-                                // if (parsed.properties && parsed.properties.className) {
-                                //     style.className = parsed.properties.className;
-                                // }
+                                // if a feature's properties include a "className" 
+                                // attribute, add them to the style; that allows
+                                // external CSS styling.
 
-                                let layer = L.geoJSON(parsed, { style: geojsonStyle });
+                                // See https://leafletjs.com/examples/geojson/
+                                let layer = L.geoJSON(parsed, {
+                                    style: (feature) => {
+                                        return { ...geojsonStyle, className: feature.properties.className };
+                                    }
+                                    // Also possible, onEachFeature(feature, layer), 
+                                    // to attach  popups or mouseover events, etc. 
+                                    // onEachFeature: (feature, layer) => { }
+
+                                    // Also possible: filter(feature, layer)
+                                    // filter: (feature, layer) => {true;}
+                                }
+                                );
                                 geojsonLayers.push(layer);
                             }
                         } catch (e) { }
@@ -130,7 +123,6 @@ const loadMarkers = (path, map, geojsonColumns, count) => {
             });
             // Add GeoJSON overlays to map
             geojsonLayers.forEach(layer => layer.addTo(map));
-            // console.log(`Added ${geojsonLayers.length} geoJson layers to map`);
         });
 }
 
@@ -172,21 +164,3 @@ async function waitForSelector(selector, timeoutMs = 2000, intervalMs = 100) {
     });
 }
 
-// colors: array of color strings, e.g. ["#60609f", "#5b5ba4", ...]
-// labels: array of label strings, e.g. ["0", "5", "10", ...]
-function addColorKey(map, colors, labels, title = "Legend") {
-    const legend = L.control({ position: 'bottomright' });
-
-    legend.onAdd = function () {
-        const div = L.DomUtil.create('div', 'info legend');
-        div.innerHTML += `<div style="font-weight:bold; margin-bottom:4px;">${title}</div>`;
-        for (let i = 0; i < colors.length; i++) {
-            div.innerHTML +=
-                `<i style="background:${colors[i]}; width:18px; height:18px; display:inline-block; margin-right:8px; border:1px solid #333; vertical-align:middle;"></i>` +
-                `<span style="vertical-align:middle;">${labels[i]}</span><br>`;
-        }
-        return div;
-    };
-
-    legend.addTo(map);
-}
